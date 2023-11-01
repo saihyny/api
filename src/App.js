@@ -5,23 +5,20 @@ import './App.css';
 
 function App() {
   const [movies,setMovies] = useState([])
-  const FetchMoviesHan =()=>{
-    fetch('https://swapi.dve/api/films/')
-    .then((response)=>{
-      return response.json();
-    })
-    .then((data)=>{
-      const MoviesList = data.results.map(moviesdata=>{
+  const [loading, setLoading] = useState(false);
+ 
+  async function FetchMoviesHan () {
+    setLoading(true)
+  const response =  await fetch('https://jsonplaceholder.typicode.com/albums');
+  const data =  await response.json();
+     setLoading(false)
+      const MoviesList = data.map((moviesdata)=>{
         return {
-          id:moviesdata.episode_id,
+          id:moviesdata.id,
           title:moviesdata.title,
-          openingText:moviesdata.opening_crawl,
-          releaseDate:moviesdata.release_date
         };
       })
       setMovies(MoviesList)
-    })
-    
   }
 
 
@@ -31,6 +28,7 @@ function App() {
         <button onClick={FetchMoviesHan}>Fetch Movies</button>
       </section>
       <section>
+        {loading && <h2>Movies are loading please wait for some time</h2>}
         <MoviesList movies={movies} />
       </section>
     </React.Fragment>
