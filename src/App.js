@@ -1,70 +1,75 @@
-import React, { useState,useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+
 import MoviesList from "./components/MoviesList";
+import AddMovie from "./components/AddMovie";
 import "./App.css";
 
 function App() {
   const [movies, setMovies] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [isCanceling, setIsCanceling] = useState(false);
 
-
-  useEffect(()=>{
-    console.log('useeffct')
-    FetchMoviesHan()
-    
-  },[])
-  async function FetchMoviesHan() {
-    if (isCanceling) {
-      return;
-    }
-    console.log('button')
-    setLoading(true);
-    
+  const fetchMoviesHandler = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
     try {
       const response = await fetch(
-        "https://jsonplaceholder.typicode.com/albums"
+        "https://react-project-db8c2-default-rtdb.firebaseio.com/movis.json"
       );
-      if (response.status === 404) {
-        throw new Error("Something went wrong ....Retrying");
+      if (!response.ok) {
+        throw new Error("Something went wrong!");
       }
+
       const data = await response.json();
-      setLoading(false);
-      const MoviesList = data.map((moviesdata) => {
+
+      const transformedMovies = data.results.map((movieData) => {
         return {
-          id: moviesdata.id,
-          title: moviesdata.title,
+          id: movieData.episode_id,
+          title: movieData.title,
+          openingText: movieData.opening_crawl,
+          releaseDate: movieData.release_date,
         };
       });
-      setMovies(MoviesList);
+      setMovies(transformedMovies);
     } catch (error) {
       setError(error.message);
     }
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchMoviesHandler();
+  }, [fetchMoviesHandler]);
+
+  function addMovieHandler(movie) {
+    console.log(movie);
   }
-  const handleCancel=()=> {
-    setIsCanceling(true);
-    
+
+  let content = <p>Found no movies.</p>;
+
+  if (movies.length > 0) {
+    content = <MoviesList movies={movies} />;
+  }
+
+  if (error) {
+    content = <p>{error}</p>;
+  }
+
+  if (isLoading) {
+    content = <p>Loading...</p>;
   }
 
   return (
     <React.Fragment>
       <section>
-        <button onClick={FetchMoviesHan}>Fetch Movies</button>
+        <AddMovie onAddMovie={addMovieHandler} />
       </section>
       <section>
-        {loading && !error && (
-          <h2>Movies are loading please wait for some time</h2>
-        )}
-        {loading && error && (
-          <>
-            <p>{error}</p>
-            <button onClick={handleCancel}>cancel</button>
-          </>
-        )}
-        <MoviesList movies={movies} />
+        <button onClick={fetchMoviesHandler}>Fetch Movies</button>
       </section>
+      <section>{content}</section>
     </React.Fragment>
   );
 }
 
-export default App
+export default App;
