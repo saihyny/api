@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import MoviesList from "./components/MoviesList";
 import "./App.css";
 
@@ -7,14 +7,23 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isCanceling, setIsCanceling] = useState(false);
+
+
+  useEffect(()=>{
+    console.log('useeffct')
+    FetchMoviesHan()
+    
+  },[])
   async function FetchMoviesHan() {
     if (isCanceling) {
       return;
     }
+    console.log('button')
     setLoading(true);
+    
     try {
       const response = await fetch(
-        "https://jsonplaceholder.typicode.com/album"
+        "https://jsonplaceholder.typicode.com/albums"
       );
       if (response.status === 404) {
         throw new Error("Something went wrong ....Retrying");
@@ -58,4 +67,4 @@ function App() {
   );
 }
 
-export default App;
+export default App
