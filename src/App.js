@@ -1,86 +1,178 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 
-import MoviesList from "./components/MoviesList";
-import AddMovie from "./components/AddMovie";
-import "./App.css";
+// Components
+import Layout from './components/Layout';
+import Home from './components/Home';
+import UserTypeSelection from './components/UserTypeSelection';
+import Login from './components/Login';
+import Register from './components/Register';
+import CustomerDashboard from './components/customer/CustomerDashboard';
+import ShopDiscovery from './components/customer/ShopDiscovery';
+import QRScanner from './components/customer/QRScanner';
+import BookingForm from './components/customer/BookingForm';
+import CustomerAppointments from './components/customer/CustomerAppointments';
+import BarberDashboard from './components/barber/BarberDashboard';
+import BarberProfile from './components/barber/BarberProfile';
+import AppointmentManagement from './components/barber/AppointmentManagement';
+import QRGenerator from './components/barber/QRGenerator';
 
+// Context
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
+
+import './App.css';
+
+// Protected Route Component
+function ProtectedRoute({ children, allowedUserTypes = [] }) {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="loading-spinner"></div>
+      </div>
+    );
+  }
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  if (allowedUserTypes.length > 0 && !allowedUserTypes.includes(user.userType)) {
+    return <Navigate to="/" replace />;
+  }
+  
+  return children;
+}
+
+// Main App Component
 function App() {
-  const [movies, setMovies] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const fetchMoviesHandler = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(
-        "https://crudcrud.com/api/cafa51acd80746309a31f6dd762f04b8/movies"
-      );
-      if (!response.ok) {
-        throw new Error("Something went wrong!");
-      }
-
-      const data = await response.json();
-     
-      const MoviesArr = [];
-         for (const key in data) {
-         
-          MoviesArr.push({
-            id:data[key]._id,
-            title:data[key].title,
-            openingText:data[key].openingText,
-            releaseDate:data[key].releaseDate,
-            
-          },);
-         }
-      setMovies(MoviesArr);
-    } catch (error) {
-      setError(error.message);
-    }
-    setIsLoading(false);
-  }, []);
+  const [isInstallable, setIsInstallable] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
 
   useEffect(() => {
-    fetchMoviesHandler();
-  }, [fetchMoviesHandler]);
+    // PWA install prompt
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+      setIsInstallable(true);
+    };
 
-   async function addMovieHandler(movie) {
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!installPrompt) return;
     
-     const response =  await fetch('https://crudcrud.com/api/cafa51acd80746309a31f6dd762f04b8/movies',{
-      method:'POST',
-      body:JSON.stringify(movie),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-     });
-     const data = await response.json();
-    
-  }
-
-  let content = <p>Found no movies.</p>;
-
-  if (movies.length > 0) {
-    content = <MoviesList movies={movies} />;
-  }
-
-  if (error) {
-    content = <p>{error}</p>;
-  }
-
-  if (isLoading) {
-    content = <p>Loading...</p>;
-  }
+    const result = await installPrompt.prompt();
+    console.log('Install prompt result:', result);
+    setInstallPrompt(null);
+    setIsInstallable(false);
+  };
 
   return (
-    <React.Fragment>
-      <section>
-        <AddMovie onAddMovie={addMovieHandler} />
-      </section>
-      <section>
-        <button onClick={fetchMoviesHandler}>Fetch Movies</button>
-      </section>
-      <section>{content}</section>
-    </React.Fragment>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent 
+          isInstallable={isInstallable}
+          onInstallClick={handleInstallClick}
+        />
+      </AuthProvider>
+    </ThemeProvider>
+  );
+}
+
+function AppContent({ isInstallable, onInstallClick }) {
+  const { theme } = useTheme();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
+  return (
+    <div className="App">
+      <Router>
+        <Layout isInstallable={isInstallable} onInstallClick={onInstallClick}>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<Home />} />
+            <Route path="/user-type" element={<UserTypeSelection />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            
+            {/* Customer Routes */}
+            <Route path="/customer/*" element={
+              <ProtectedRoute allowedUserTypes={['customer']}>
+                <Routes>
+                  <Route path="/" element={<CustomerDashboard />} />
+                  <Route path="/discover" element={<ShopDiscovery />} />
+                  <Route path="/scan" element={<QRScanner />} />
+                  <Route path="/book/:shopId?" element={<BookingForm />} />
+                  <Route path="/appointments" element={<CustomerAppointments />} />
+                </Routes>
+              </ProtectedRoute>
+            } />
+            
+            {/* Barber Routes */}
+            <Route path="/barber/*" element={
+              <ProtectedRoute allowedUserTypes={['barber']}>
+                <Routes>
+                  <Route path="/" element={<BarberDashboard />} />
+                  <Route path="/profile" element={<BarberProfile />} />
+                  <Route path="/appointments" element={<AppointmentManagement />} />
+                  <Route path="/qr-code" element={<QRGenerator />} />
+                </Routes>
+              </ProtectedRoute>
+            } />
+            
+            {/* Auto-redirect based on user type */}
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                {user?.userType === 'customer' ? 
+                  <Navigate to="/customer" replace /> : 
+                  <Navigate to="/barber" replace />
+                }
+              </ProtectedRoute>
+            } />
+            
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Layout>
+      </Router>
+      
+      {/* Toast notifications */}
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: 'var(--bg-secondary)',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--border)',
+          },
+          success: {
+            iconTheme: {
+              primary: 'var(--success)',
+              secondary: 'white',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: 'var(--error)',
+              secondary: 'white',
+            },
+          },
+        }}
+      />
+    </div>
   );
 }
 
